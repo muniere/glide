@@ -1,0 +1,7 @@
+# Build outputs
+/glide
+
+# Go test binary / coverage
+*.test
+*.out
+coverage.out
