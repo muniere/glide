@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var Version = "1.1.0"
+var Version = "1.1.1"
 
 func Execute(args []string) error {
 	cmd := &cobra.Command{
@@ -69,21 +69,30 @@ func Execute(args []string) error {
 		}
 	}())
 
-	cmd.AddCommand(func() *cobra.Command {
-		ctx := removeContext{}
-		return &cobra.Command{
-			Use:     "remove <branch> [branch ...]",
-			Aliases: []string{"rm"},
-			Short:   "Remove worktrees",
-			RunE: func(cmd *cobra.Command, args []string) error {
-				ctx.args = args
-				return remove.execute(ctx)
-			},
-			ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-				return remove.predict(args, toComplete)
-			},
-		}
-	}())
+	// Cobra does not include aliases in shell completion candidates, so both
+	// "remove" and "rm" are registered as separate commands sharing the same
+	// implementation.
+	cmd.AddCommand(&cobra.Command{
+		Use:   "remove <branch> [branch ...]",
+		Short: "Remove worktrees",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return remove.execute(removeContext{args: args})
+		},
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return remove.predict(args, toComplete)
+		},
+	})
+
+	cmd.AddCommand(&cobra.Command{
+		Use:   "rm <branch> [branch ...]",
+		Short: "Remove worktrees",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return remove.execute(removeContext{args: args})
+		},
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return remove.predict(args, toComplete)
+		},
+	})
 
 	cmd.SetArgs(args)
 	return cmd.Execute()
@@ -272,16 +281,23 @@ func (_ removeCommand) execute(ctx removeContext) error {
 }
 
 func (_ removeCommand) predict(args []string, _ string) ([]string, cobra.ShellCompDirective) {
-	if len(args) > 0 {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
 	entries, err := glide.List()
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
+	selected := make(map[string]bool, len(args))
+	for _, a := range args {
+		selected[a] = true
+	}
 	branches := make([]string, 0, len(entries))
-	for _, it := range entries {
-		branches = append(branches, it.Ref.Short())
+	for i, it := range entries {
+		if i == 0 {
+			continue // skip main worktree
+		}
+		branch := it.Ref.Short()
+		if !selected[branch] {
+			branches = append(branches, branch)
+		}
 	}
 	return branches, cobra.ShellCompDirectiveNoFileComp
 }
