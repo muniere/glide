@@ -6,10 +6,11 @@ import (
 
 	"github.com/muniere/glide/internal/glide"
 	"github.com/muniere/glide/internal/shell"
+	"github.com/muniere/glide/internal/vcs"
 	"github.com/spf13/cobra"
 )
 
-var Version = "1.0.0"
+var Version = "1.1.0"
 
 func Execute(args []string) error {
 	cmd := &cobra.Command{
@@ -88,7 +89,7 @@ func Execute(args []string) error {
 	return cmd.Execute()
 }
 
-type listCommand struct {}
+type listCommand struct{}
 
 var list listCommand
 
@@ -193,7 +194,18 @@ func (_ addCommand) execute(ctx addContext) error {
 		return fmt.Errorf("Error: worktree already exists for branch '%s' at '%s'", branch, *path)
 	}
 
-	target, err := glide.Prepare(branch)
+	repoRoot, err := vcs.RepoRoot()
+	if err != nil {
+		return err
+	}
+
+	config, err := glide.LoadConfig(repoRoot)
+	if err != nil {
+		return err
+	}
+
+	options := glide.ResolveOptions{RepoRoot: repoRoot}
+	target, err := config.GetStrategy().Resolve(branch, options)
 	if err != nil {
 		return err
 	}

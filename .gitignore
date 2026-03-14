@@ -1,6 +1,9 @@
 # Build outputs
 /glide
 
+# Local configuration
+/.glide/
+
 # Go test binary / coverage
 *.test
 *.out

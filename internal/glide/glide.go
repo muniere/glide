@@ -2,16 +2,17 @@ package glide
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/muniere/glide/internal/shell"
 )
 
+// GitRef represents a git reference such as a branch or tag.
 type GitRef struct {
 	Name string
 }
 
+// Short returns the short name of the ref, stripping the "refs/heads/" prefix if present.
 func (r GitRef) Short() string {
 	if _, after, ok := strings.Cut(r.Name, "refs/heads/"); ok {
 		return after
@@ -20,12 +21,14 @@ func (r GitRef) Short() string {
 	return r.Name
 }
 
+// GitWorktree represents a single git worktree entry.
 type GitWorktree struct {
 	Path string
 	Head string
 	Ref  GitRef
 }
 
+// List returns all worktrees in the current repository.
 func List() ([]GitWorktree, error) {
 	res := shell.Capture("git", "worktree", "list", "--porcelain")
 	if !res.Success {
@@ -68,6 +71,7 @@ func List() ([]GitWorktree, error) {
 	return rows, nil
 }
 
+// Find returns the path of the worktree for the given branch, or nil if not found.
 func Find(branch string) (*string, error) {
 	entries, err := List()
 	if err != nil {
@@ -81,26 +85,12 @@ func Find(branch string) (*string, error) {
 	return nil, nil
 }
 
-func Prepare(branch string) (string, error) {
-	res := shell.Capture("git", "rev-parse", "--show-toplevel")
-	if !res.Success {
-		if res.Stderr != "" {
-			return "", fmt.Errorf("%s", res.Stderr)
-		}
-		return "", fmt.Errorf("Error: not in a git repository")
-	}
-
-	repoRoot := res.Stdout
-	parent := filepath.Dir(repoRoot)
-	repo := filepath.Base(repoRoot)
-	normalized := strings.ReplaceAll(branch, "/", "-")
-	return filepath.Join(parent, repo+"-"+normalized), nil
-}
-
+// Add creates a new worktree with the given arguments.
 func Add(args []string) shell.CallResult {
 	return shell.Call("git", append([]string{"worktree", "add"}, args...))
 }
 
+// Remove deletes the worktree at the given path.
 func Remove(path string) shell.CallResult {
 	return shell.Call("git", []string{"worktree", "remove", path})
 }
