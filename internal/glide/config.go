@@ -35,7 +35,11 @@ type hierarchyConfig struct {
 
 // GetStrategy returns a hierarchyStrategy configured with this config.
 func (c hierarchyConfig) GetStrategy() Strategy {
-	return hierarchyStrategy{root: c.Root}
+	root := c.Root
+	if root == "" {
+		root = ".worktrees"
+	}
+	return hierarchyStrategy{root: root}
 }
 
 // compositeConfig is the direct representation of a config file.
@@ -48,10 +52,10 @@ type compositeConfig struct {
 // resolve converts compositeConfig into a typed Config based on the strategy field.
 func (r compositeConfig) resolve() (Config, error) {
 	switch r.Strategy {
-	case "", "flat":
-		return r.Flat, nil
-	case "hierarchy":
+	case "", "hierarchy":
 		return r.Hierarchy, nil
+	case "flat":
+		return r.Flat, nil
 	default:
 		return nil, fmt.Errorf("Error: unknown strategy '%s'", r.Strategy)
 	}
@@ -60,7 +64,7 @@ func (r compositeConfig) resolve() (Config, error) {
 // LoadConfig loads the effective strategy configuration for the given repository root.
 // It first checks for a local config at <root>/.glide/config, falling back to
 // the global config at $XDG_CONFIG_HOME/glide/config.
-// Returns a flat strategy with defaults if no config file is found.
+// Returns a hierarchy strategy with defaults if no config file is found.
 func LoadConfig(root string) (Config, error) {
 	localPath := filepath.Join(root, ".glide", "config")
 	if _, err := os.Stat(localPath); err == nil {
@@ -82,7 +86,7 @@ func LoadConfig(root string) (Config, error) {
 		return global.resolve()
 	}
 
-	return flatConfig{}, nil
+	return hierarchyConfig{}, nil
 }
 
 // globalConfigRootDir returns the root directory for global config files,
