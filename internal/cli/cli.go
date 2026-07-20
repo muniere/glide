@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var Version = "1.1.1"
+var Version = "1.2.0"
 
 func Execute(args []string) error {
 	cmd := &cobra.Command{
